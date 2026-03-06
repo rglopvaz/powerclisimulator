@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerCLI Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e14;
+    --bg2: #0d1117;
+    --panel: #111820;
+    --border: #1e3a4a;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --accent3: #ff6b35;
+    --warn: #ffd700;
+    --text: #c9d1d9;
+    --dim: #4a6070;
+    --success: #00ff9d;
+    --error: #ff4560;
+    --ps-blue: #012456;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* TOP BAR — estilo PowerShell Windows */
+  .topbar {
+    background: #012456;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    border-bottom: 1px solid #1a4a7a;
+  }
+  .topbar-titlebar {
+    display: flex;
+    align-items: center;
+    padding: 5px 8px;
+    gap: 6px;
+    background: #012456;
+    user-select: none;
+  }
+  .topbar-icon {
+    width: 16px; height: 16px;
+    background: #012456;
+    border: 1px solid #4a90d9;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    color: #4a90d9;
+    flex-shrink: 0;
+  }
+  .topbar-title {
+    flex: 1;
+    font-family: 'Segoe UI', 'Consolas', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    color: #c8d8e8;
+    letter-spacing: 0;
+  }
+  .topbar-winbtns {
+    display: flex;
+    gap: 0;
+    margin-left: auto;
+  }
+  .topbar-winbtn {
+    width: 46px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: #c8d8e8;
+    cursor: pointer;
+    transition: background 0.1s;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .topbar-winbtn:hover { background: rgba(255,255,255,0.1); }
+  .topbar-winbtn.close:hover { background: #e81123; color: #fff; }
+  .topbar-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 10px 4px 10px;
+    background: #011a3a;
+    font-family: 'Consolas', monospace;
+    font-size: 11px;
+    color: #6a9abf;
+    border-top: 1px solid #0a3060;
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #2a5a7a;
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+  .status-dot.connected {
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 6px var(--success); }
+    50% { box-shadow: 0 0 12px var(--success), 0 0 20px rgba(0,255,157,0.3); }
+  }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-section {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .cmd-btn {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+    text-align: left;
+    padding: 5px 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+  }
+  .cmd-btn:hover {
+    background: rgba(0,212,255,0.08);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .cmd-btn .cmd-desc {
+    display: block;
+    font-size: 10px;
+    color: var(--dim);
+    margin-top: 1px;
+  }
+
+  /* TERMINAL */
+  .terminal-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .terminal-header {
+    background: #010d1a;
+    padding: 6px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .win-btn { display: none; }
+  .terminal-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    color: var(--dim);
+    margin-left: 8px;
+  }
+
+  .output {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: var(--ps-blue);
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(0,50,100,0.3) 0%, transparent 60%);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .output::-webkit-scrollbar { width: 5px; }
+  .output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .line {
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .line.prompt { color: #eeedf0; }
+  .line.info { color: #c0c0c0; }
+  .line.success { color: var(--success); }
+  .line.error { color: var(--error); }
+  .line.warn { color: var(--warn); }
+  .line.accent { color: var(--accent); }
+  .line.dim { color: var(--dim); }
+  .line.header { color: var(--accent); font-weight: bold; }
+  .line.data { color: #aedcf5; }
+  .line.cmd-echo { color: #ffff99; }
+
+  .input-row {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    background: #010d1a;
+    border-top: 1px solid var(--border);
+    gap: 8px;
+  }
+  .ps-prompt {
+    color: var(--accent2);
+    font-size: 13px;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .cmd-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffff99;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    caret-color: var(--accent);
+  }
+  .run-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 4px 14px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .run-btn:hover { background: var(--accent2); }
+
+  /* VM info panel */
+  .info-panel {
+    width: 220px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .info-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .vm-card {
+    background: rgba(0,212,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    transition: border-color 0.2s;
+  }
+  .vm-card:hover { border-color: var(--accent); }
+  .vm-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .vm-stat { color: var(--dim); margin-bottom: 2px; }
+  .vm-stat span { color: var(--text); }
+  .vm-power {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  .vm-power.on { background: rgba(0,255,157,0.15); color: var(--success); }
+  .vm-power.off { background: rgba(255,69,96,0.15); color: var(--error); }
+  .vm-power.suspended { background: rgba(255,215,0,0.15); color: var(--warn); }
+
+  .typing::after {
+    content: '▋';
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-titlebar">
+    <div class="topbar-icon">❯_</div>
+    <div class="topbar-title">VMware vSphere PowerCLI — Windows PowerShell</div>
+    <div class="topbar-winbtns">
+      <div class="topbar-winbtn">&#x2014;</div>
+      <div class="topbar-winbtn">&#x2610;</div>
+      <div class="topbar-winbtn close">&#x2715;</div>
+    </div>
+  </div>
+  <div class="topbar-status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Desconectado</span>
+  </div>
+</div>
+
+<div class="main">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">🔌 Conexión</div>
+      <button class="cmd-btn" onclick="insertCmd('Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -Confirm:$false')">
+        Set-PowerCLIConfiguration
+        <span class="cmd-desc">Config certificados</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Connect-VIServer -Server vcenter-01.lab.local -User admin@lab.local -Password Lab1234!')">
+        Connect-VIServer
+        <span class="cmd-desc">Conectar a vCenter</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Disconnect-VIServer -Server * -Confirm:$false')">
+        Disconnect-VIServer
+        <span class="cmd-desc">Desconectar sesión</span>
+      </button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">🖥️ VMs</div>
+      <button class="cmd-btn" onclick="insertCmd('Get-VM')">
+        Get-VM
+        <span class="cmd-desc">Listar todas las VMs</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Get-VM -Name SRV-01')">
+        Get-VM -Name
+        <span class="cmd-desc">VM específica</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Start-VM -VM SRV-04 -Confirm:$false')">
+        Start-VM
+        <span class="cmd-desc">Encender VM</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Stop-VM -VM SRV-01 -Confirm:$false')">
+        Stop-VM
+        <span class="cmd-desc">Apagar VM</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Suspend-VM -VM SRV-02 -Confirm:$false')">
+        Suspend-VM
+        <span class="cmd-desc">Suspender VM</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Restart-VM -VM SRV-03 -Confirm:$false')">
+        Restart-VM
+        <span class="cmd-desc">Reiniciar VM</span>
+      </button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-title">📊 Info</div>
+      <button class="cmd-btn" onclick="insertCmd('Get-VMHost')">
+        Get-VMHost
+        <span class="cmd-desc">Listar ESXi hosts</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Get-Datastore')">
+        Get-Datastore
+        <span class="cmd-desc">Ver datastores</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Get-Cluster')">
+        Get-Cluster
+        <span class="cmd-desc">Ver clusters</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Get-VMGuest -VM SRV-01')">
+        Get-VMGuest
+        <span class="cmd-desc">Info guest OS</span>
+      </button>
+      <button class="cmd-btn" onclick="insertCmd('Get-Stat -Entity SRV-01 -Stat cpu.usage.average -MaxSamples 5')">
+        Get-Stat
+        <span class="cmd-desc">Estadísticas CPU</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- TERMINAL -->
+  <div class="terminal-wrap">
+    <div class="terminal-header">
+      <div class="win-btn red"></div>
+      <div class="win-btn yellow"></div>
+      <div class="win-btn green"></div>
+      <div class="terminal-title">Windows PowerShell — VMware vSphere PowerCLI</div>
+    </div>
+    <div class="output" id="output"></div>
+    <div class="input-row">
+      <span class="ps-prompt" id="promptLabel">PS C:\> </span>
+      <input class="cmd-input" id="cmdInput" type="text" autocomplete="off" spellcheck="false" placeholder="Escribe un comando PowerCLI..." />
+      <button class="run-btn" onclick="runCommand()">RUN ▶</button>
+    </div>
+  </div>
+
+  <!-- VM INFO PANEL -->
+  <div class="info-panel">
+    <div class="info-title">🖥️ Inventario vCenter</div>
+    <div id="vmList">
+      <div style="color:var(--dim);font-size:11px;">Conéctate a vCenter para ver el inventario.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+const state = {
+  connected: false,
+  vcenter: '',
+  user: '',
+  history: [],
+  historyIndex: -1,
+  vms: [
+    { name:'SRV-01', power:'on', os:'Windows Server 2022', cpu:4, mem:8, ip:'10.0.0.11', host:'host-01.lab.local', datastore:'DS-VOL-01', snapshots:[] },
+    { name:'SRV-02', power:'on', os:'Linux Server 22.04', cpu:2, mem:4, ip:'10.0.0.12', host:'host-01.lab.local', datastore:'DS-VOL-01', snapshots:[] },
+    { name:'SRV-03', power:'on', os:'Windows Server 2019', cpu:8, mem:16, ip:'10.0.0.13', host:'host-02.lab.local', datastore:'DS-VOL-02', snapshots:[] },
+    { name:'SRV-04', power:'off', os:'Linux Server 8.6', cpu:4, mem:8, ip:'N/A', host:'host-02.lab.local', datastore:'DS-VOL-01', snapshots:[] },
+    { name:'SRV-05', power:'suspended', os:'Windows Server 2019', cpu:2, mem:4, ip:'N/A', host:'host-03.lab.local', datastore:'DS-VOL-03', snapshots:[] },
+    { name:'SRV-06', power:'on', os:'Windows Server 2022', cpu:2, mem:8, ip:'10.0.0.16', host:'host-01.lab.local', datastore:'DS-VOL-01', snapshots:[{name:'Pre-update',date:'2025-02-15 10:30:00'}] },
+  ],
+  hosts: [
+    { name:'host-01.lab.local', version:'8.0.2', cpu:'64-Core Generic CPU', cpuUsage:35, mem:128, memUsage:62, state:'Connected' },
+    { name:'host-02.lab.local', version:'8.0.2', cpu:'64-Core Generic CPU', cpuUsage:51, mem:128, memUsage:74, state:'Connected' },
+    { name:'host-03.lab.local', version:'8.0.2', cpu:'32-Core Generic CPU', cpuUsage:18, mem:64, memUsage:41, state:'Connected' },
+  ],
+  datastores: [
+    { name:'DS-VOL-01', type:'VMFS-6', capacity:4096, free:1820, host:'host-01' },
+    { name:'DS-VOL-02', type:'VMFS-6', capacity:2048, free:890, host:'host-02' },
+    { name:'DS-VOL-03', type:'VMFS-5', capacity:8192, free:5120, host:'host-03' },
+  ],
+  clusters: [
+    { name:'CLUSTER-01', hosts:3, vms:6, drs:'Enabled', ha:'Enabled' },
+  ]
+};
+
+// ===================== BOOT =====================
+window.onload = () => {
+  printBoot();
+  document.getElementById('cmdInput').addEventListener('keydown', handleKey);
+};
+
+function printBoot() {
+  const lines = [
+
+
+    { text: 'PowerShell 7.4.0', cls:'info' },
+    { text: 'Copyright (C) Microsoft Corporation. Todos los derechos reservados.', cls:'dim' },
+    { text: '', cls:'info' },
+    { text: 'Módulos cargados:', cls:'dim' },
+    { text: '  vSphere.PowerCLI                        13.2.0', cls:'success' },
+    { text: '  vSphere.VimAutomation.Core              13.2.0', cls:'success' },
+    { text: '  vSphere.VimAutomation.Common            13.2.0', cls:'success' },
+    { text: '', cls:'info' },
+    { text: '─'.repeat(70), cls:'dim' },
+    { text: '  Escribe "help" para ver los comandos disponibles.', cls:'warn' },
+    { text: '  Usa los botones del panel izquierdo para insertar comandos rápidos.', cls:'warn' },
+    { text: '─'.repeat(70), cls:'dim' },
+    { text: '', cls:'info' },
+  ];
+  lines.forEach((l,i) => setTimeout(() => print(l.text, l.cls), i*30));
+}
+
+// ===================== OUTPUT =====================
+function print(text, cls='info') {
+  const out = document.getElementById('output');
+  const div = document.createElement('div');
+  div.className = `line ${cls}`;
+  div.textContent = text;
+  out.appendChild(div);
+  out.scrollTop = out.scrollHeight;
+}
+function printEcho(cmd) {
+  print(`PS ${state.connected ? state.vcenter : 'C'}:\\> ${cmd}`, 'cmd-echo');
+}
+function nl() { print(''); }
+
+// ===================== COMMAND HANDLER =====================
+function handleKey(e) {
+  const input = document.getElementById('cmdInput');
+  if (e.key === 'Enter') { runCommand(); }
+  else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (state.historyIndex < state.history.length - 1) {
+      state.historyIndex++;
+      input.value = state.history[state.history.length - 1 - state.historyIndex];
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (state.historyIndex > 0) {
+      state.historyIndex--;
+      input.value = state.history[state.history.length - 1 - state.historyIndex];
+    } else { state.historyIndex = -1; input.value = ''; }
+  }
+}
+
+function insertCmd(cmd) {
+  const input = document.getElementById('cmdInput');
+  input.value = cmd;
+  input.focus();
+}
+
+function runCommand() {
+  const input = document.getElementById('cmdInput');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  state.history.push(cmd);
+  state.historyIndex = -1;
+  input.value = '';
+  printEcho(cmd);
+  processCommand(cmd);
+}
+
+// ===================== HELPERS =====================
+// Extrae el nombre de VM del parámetro -VM, soportando: -VM WEB-01, -VM "WEB-01", -VM 'WEB-01'
+function parseVMName(raw) {
+  // Primero intenta con comillas dobles o simples
+  let match = raw.match(/-VM\s+["']([^"']+)["']/i);
+  if (match) return match[1].trim();
+  // Sin comillas: toma el token siguiente al -VM que no empiece con otro parámetro
+  match = raw.match(/-VM\s+([A-Za-z0-9][^\s]*)/i);
+  if (match) return match[1].replace(/['"]/g, '').trim();
+  return null;
+}
+
+// ===================== COMMAND PROCESSOR =====================
+function processCommand(raw) {
+  const cmd = raw.trim();
+  const lower = cmd.toLowerCase();
+
+  // Help
+  if (lower === 'help') { showHelp(); return; }
+
+  // Clear
+  if (lower === 'clear-host' || lower === 'clear' || lower === 'cls') {
+    document.getElementById('output').innerHTML = '';
+    return;
+  }
+
+  // Set-PowerCLIConfiguration
+  if (lower.startsWith('set-powercliconfig')) {
+    nl();
+    print('Scope          DefaultVIServerMode  InvalidCertificateAction  DisplayDeprecationWarnings', 'header');
+    print('─────          ───────────────────  ────────────────────────  ──────────────────────────', 'dim');
+    print('Session        Multiple             Ignore                    True', 'data');
+    nl();
+    print('✔ Configuración aplicada correctamente.', 'success');
+    nl();
+    return;
+  }
+
+  // Connect-VIServer
+  if (lower.startsWith('connect-viserver')) {
+    if (state.connected) {
+      print(`\nYa existe una conexión activa con ${state.vcenter}. Usa Disconnect-VIServer primero.`, 'warn');
+      nl();
+      return;
+    }
+    const serverMatch = raw.match(/-Server\s+(\S+)/i);
+    const userMatch = raw.match(/-User\s+(\S+)/i);
+    const credMatch = raw.match(/-Credential/i);
+
+    if (!serverMatch) { print('\nError: parámetro -Server requerido.', 'error'); nl(); return; }
+    const server = serverMatch[1];
+    const user = userMatch ? userMatch[1] : 'administrator@vsphere.local';
+
+    print('', 'info');
+    print('Conectando...', 'dim');
+    setTimeout(() => {
+      print('Verificando certificado SSL...', 'dim');
+      setTimeout(() => {
+        print('Autenticando usuario...', 'dim');
+        setTimeout(() => {
+          state.connected = true;
+          state.vcenter = server;
+          state.user = user;
+          updateStatus();
+          updateVMPanel();
+          nl();
+          print('Name                           Port  User', 'header');
+          print('─────────────────────────────  ────  ──────────────────────────────', 'dim');
+          print(`${server.padEnd(30)} 443   ${user}`, 'data');
+          nl();
+          print(`✔ Conectado exitosamente a ${server}`, 'success');
+          nl();
+        }, 400);
+      }, 400);
+    }, 500);
+    return;
+  }
+
+  // Disconnect-VIServer
+  if (lower.startsWith('disconnect-viserver')) {
+    if (!state.connected) { print('\nNo hay conexión activa.', 'warn'); nl(); return; }
+    nl();
+    print(`Cerrando sesión en ${state.vcenter}...`, 'dim');
+    setTimeout(() => {
+      print(`✔ Sesión cerrada correctamente.`, 'success');
+      nl();
+      state.connected = false;
+      state.vcenter = '';
+      state.user = '';
+      updateStatus();
+      updateVMPanel();
+    }, 500);
+    return;
+  }
+
+  // Commands that require connection
+  if (!state.connected) {
+    nl();
+    print('Error: No conectado a ningún servidor vCenter.', 'error');
+    print('Usa Connect-VIServer para establecer una conexión primero.', 'warn');
+    nl();
+    return;
+  }
+
+  // Get-VM
+  if (lower === 'get-vm') {
+    showAllVMs();
+    return;
+  }
+  if (lower.startsWith('get-vm -name')) {
+    const match = raw.match(/-Name\s+(\S+)/i);
+    if (!match) { print('\nError: especifica el nombre de la VM.', 'error'); nl(); return; }
+    const name = match[1].replace(/['"]/g,'');
+    const vm = state.vms.find(v => v.name.toLowerCase() === name.toLowerCase());
+    if (!vm) { print(`\nGet-VM : La VM '${name}' no fue encontrada.`, 'error'); nl(); return; }
+    showVMDetail(vm);
+    return;
+  }
+
+  // Start-VM
+  if (lower.startsWith('start-vm')) {
+    const name = parseVMName(raw);
+    if (!name) { print('\nError: especifica la VM con -VM <nombre>', 'error'); nl(); return; }
+    const vm = state.vms.find(v => v.name.toLowerCase() === name.toLowerCase());
+    if (!vm) { print(`\nError: VM '${name}' no encontrada. VMs disponibles: ${state.vms.map(v=>v.name).join(', ')}`, 'error'); nl(); return; }
+    nl();
+    if (vm.power === 'on') { print(`La VM '${vm.name}' ya está encendida.`, 'warn'); nl(); return; }
+    print(`Iniciando VM '${vm.name}'...`, 'dim');
+    setTimeout(() => {
+      vm.power = 'on';
+      vm.ip = `192.168.10.${Math.floor(Math.random()*200)+10}`;
+      print(`✔ VM '${vm.name}' iniciada correctamente.`, 'success');
+      nl();
+      updateVMPanel();
+    }, 800);
+    return;
+  }
+
+  // Stop-VM
+  if (lower.startsWith('stop-vm')) {
+    const name = parseVMName(raw);
+    if (!name) { print('\nError: especifica la VM con -VM <nombre>', 'error'); nl(); return; }
+    const vm = state.vms.find(v => v.name.toLowerCase() === name.toLowerCase());
+    if (!vm) { print(`\nError: VM '${name}' no encontrada. VMs disponibles: ${state.vms.map(v=>v.name).join(', ')}`, 'error'); nl(); return; }
+    nl();
+    if (vm.power === 'off') { print(`La VM '${vm.name}' ya está apagada.`, 'warn'); nl(); return; }
+    print(`Apagando VM '${vm.name}'...`, 'dim');
+    setTimeout(() => {
+      vm.power = 'off';
+      vm.ip = 'N/A';
+      print(`✔ VM '${vm.name}' apagada correctamente.`, 'success');
+      nl();
+      updateVMPanel();
+    }, 800);
+    return;
+  }
+
+  // Suspend-VM
+  if (lower.startsWith('suspend-vm')) {
+    const name = parseVMName(raw);
+    if (!name) { print('\nError: especifica la VM con -VM <nombre>', 'error'); nl(); return; }
+    const vm = state.vms.find(v => v.name.toLowerCase() === name.toLowerCase());
+    if (!vm) { print(`\nError: VM '${name}' no encontrada.`, 'error'); nl(); return; }
+    nl();
+    if (vm.power !== 'on') { print(`La VM '${vm.name}' no está encendida (estado: ${vm.power}).`, 'warn'); nl(); return; }
+    print(`Suspendiendo VM '${vm.name}'...`, 'dim');
+    setTimeout(() => {
+      vm.power = 'suspended'; vm.ip = 'N/A';
+      print(`✔ VM '${vm.name}' suspendida.`, 'success'); nl(); updateVMPanel();
+    }, 700);
+    return;
+  }
+
+  // Restart-VM
+  if (lower.startsWith('restart-vm')) {
+    const name = parseVMName(raw);
+    if (!name) { print('\nError: especifica la VM con -VM <nombre>', 'error'); nl(); return; }
+    const vm = state.vms.find(v => v.name.toLowerCase() === name.toLowerCase());
+    if (!vm) { print(`\nError: VM '${name}' no encontrada.`, 'error'); nl(); return; }
+    nl();
+    if (vm.power !== 'on') { print(`La VM '${vm.name}' no está encendida (estado: ${vm.power}).`, 'warn'); nl(); return; }
+    print(`Reiniciando VM '${vm.name}'...`, 'dim');
+    setTimeout(() => { print(`✔ VM '${vm.name}' reiniciada correctamente.`, 'success'); nl(); }, 600);
+    return;
+  }
+
+  // Get-VMHost
+  if (lower === 'get-vmhost') {
+    showHosts();
+    return;
+  }
+
+  // Get-Datastore
+  if (lower === 'get-datastore') {
+    showDatastores();
+    return;
+  }
+
+  // Get-Cluster
+  if (lower === 'get-cluster') {
+    showClusters();
+    return;
+  }
+
+  // Get-VMGuest
+  if (lower.startsWith('get-vmguest')) {
+    const match = raw.match(/-VM\s+(\S+)/i);
+    const name = match ? match[1].replace(/['"]/g,'') : null;
+    const vm = name ? state.vms.find(v => v.name.toLowerCase() === name.toLowerCase()) : null;
+    if (!vm) { print(`\nError: VM no encontrada.`, 'error'); nl(); return; }
+    showVMGuest(vm);
+    return;
+  }
+
+  // Get-Stat
+  if (lower.startsWith('get-stat')) {
+    const match = raw.match(/-Entity\s+(\S+)/i);
+    const name = match ? match[1].replace(/['"]/g,'') : null;
+    const vm = name ? state.vms.find(v => v.name.toLowerCase() === name.toLowerCase()) : null;
+    if (!vm) { print(`\nError: entidad no encontrada.`, 'error'); nl(); return; }
+    showStats(vm);
+    return;
+  }
+
+  // Snapshots
+  if (lower.startsWith('get-snapshot')) {
+    const match = raw.match(/-VM\s+(\S+)/i);
+    const name = match ? match[1].replace(/['"]/g,'') : null;
+    const vm = name ? state.vms.find(v => v.name.toLowerCase() === name.toLowerCase()) : null;
+    if (!vm) { print(`\nError: VM no encontrada.`, 'error'); nl(); return; }
+    showSnapshots(vm);
+    return;
+  }
+
+  if (lower.startsWith('new-snapshot')) {
+    const vmMatch = raw.match(/-VM\s+(\S+)/i);
+    const nameMatch = raw.match(/-Name\s+"?([^"]+)"?/i);
+    const vmName = vmMatch ? vmMatch[1].replace(/['"]/g,'') : null;
+    const snapName = nameMatch ? nameMatch[1] : 'Snapshot-' + Date.now();
+    const vm = vmName ? state.vms.find(v => v.name.toLowerCase() === vmName.toLowerCase()) : null;
+    if (!vm) { print(`\nError: VM no encontrada.`, 'error'); nl(); return; }
+    nl();
+    print(`Creando snapshot '${snapName}' en VM '${vm.name}'...`, 'dim');
+    setTimeout(() => {
+      const now = new Date().toISOString().replace('T',' ').substring(0,19);
+      vm.snapshots.push({name: snapName, date: now});
+      print(`✔ Snapshot '${snapName}' creado exitosamente.`, 'success');
+      print(`  VM: ${vm.name}`, 'data');
+      print(`  Fecha: ${now}`, 'data');
+      nl();
+      updateVMPanel();
+    }, 900);
+    return;
+  }
+
+  if (lower.startsWith('remove-snapshot')) {
+    nl();
+    print('Eliminando snapshot...', 'dim');
+    setTimeout(() => { print('✔ Snapshot eliminado correctamente.', 'success'); nl(); }, 700);
+    return;
+  }
+
+  // Get-VICommand
+  if (lower === 'get-vicommand') {
+    showVICommands();
+    return;
+  }
+
+  // Unknown
+  nl();
+  print(`El término '${cmd.split(' ')[0]}' no se reconoce como nombre de cmdlet, función, archivo de script o programa ejecutable.`, 'error');
+  print(`Comprueba la ortografía o escribe "help" para ver los comandos disponibles.`, 'warn');
+  nl();
+}
+
+// ===================== DISPLAY FUNCTIONS =====================
+function showAllVMs() {
+  nl();
+  print('Name                 PowerState  NumCPU  MemoryGB  Guest OS', 'header');
+  print('────────────────────  ──────────  ──────  ────────  ──────────────────────', 'dim');
+  state.vms.forEach(vm => {
+    const ps = vm.power === 'on' ? 'PoweredOn ' : vm.power === 'off' ? 'PoweredOff' : 'Suspended ';
+    const line = `${vm.name.padEnd(21)} ${ps.padEnd(11)} ${String(vm.cpu).padEnd(7)} ${String(vm.mem).padEnd(9)} ${vm.os}`;
+    const cls = vm.power === 'on' ? 'success' : vm.power === 'off' ? 'error' : 'warn';
+    print(line, cls === 'success' ? 'data' : 'info');
+  });
+  nl();
+}
+
+function showVMDetail(vm) {
+  nl();
+  print(`VM: ${vm.name}`, 'accent');
+  print('─'.repeat(50), 'dim');
+  print(`PowerState    : ${vm.power === 'on' ? 'PoweredOn' : vm.power === 'off' ? 'PoweredOff' : 'Suspended'}`, vm.power === 'on' ? 'success' : 'error');
+  print(`NumCPU        : ${vm.cpu}`, 'data');
+  print(`MemoryGB      : ${vm.mem}`, 'data');
+  print(`GuestOS       : ${vm.os}`, 'data');
+  print(`VMHost        : ${vm.host}`, 'data');
+  print(`Datastore     : ${vm.datastore}`, 'data');
+  print(`IPAddress     : ${vm.ip}`, 'data');
+  print(`Snapshots     : ${vm.snapshots.length}`, 'data');
+  nl();
+}
+
+function showVMGuest(vm) {
+  nl();
+  print(`VMGuest: ${vm.name}`, 'accent');
+  print('─'.repeat(50), 'dim');
+  print(`State          : ${vm.power === 'on' ? 'Running' : 'NotRunning'}`, vm.power === 'on' ? 'success' : 'warn');
+  print(`OSFullName     : ${vm.os}`, 'data');
+  print(`IPAddress      : ${vm.ip}`, 'data');
+  print(`HostName       : ${vm.name.toLowerCase()}.lab.local`, 'data');
+  print(`ToolsVersion   : 12352`, 'data');
+  print(`ToolsStatus    : toolsOk`, 'data');
+  nl();
+}
+
+function showHosts() {
+  nl();
+  print('Name                     State      Version  CPU%  MemGB  Mem%', 'header');
+  print('────────────────────────  ─────────  ───────  ────  ─────  ────', 'dim');
+  state.hosts.forEach(h => {
+    print(`${h.name.padEnd(25)} ${h.state.padEnd(10)} ${h.version.padEnd(8)} ${String(h.cpuUsage+'%').padEnd(5)} ${String(h.mem).padEnd(6)} ${h.memUsage}%`, 'data');
+  });
+  nl();
+}
+
+function showDatastores() {
+  nl();
+  print('Name            Type    CapacityGB  FreeGB  FreeSpace%', 'header');
+  print('──────────────  ──────  ──────────  ──────  ──────────', 'dim');
+  state.datastores.forEach(d => {
+    const pct = Math.round((d.free/d.capacity)*100);
+    print(`${d.name.padEnd(15)} ${d.type.padEnd(7)} ${String(d.capacity).padEnd(11)} ${String(d.free).padEnd(7)} ${pct}%`, 'data');
+  });
+  nl();
+}
+
+function showClusters() {
+  nl();
+  print('Name           NumHosts  NumVM  DRS      HA', 'header');
+  print('─────────────  ────────  ─────  ───────  ───────', 'dim');
+  state.clusters.forEach(c => {
+    print(`${c.name.padEnd(14)} ${String(c.hosts).padEnd(9)} ${String(c.vms).padEnd(6)} ${c.drs.padEnd(8)} ${c.ha}`, 'data');
+  });
+  nl();
+}
+
+function showSnapshots(vm) {
+  nl();
+  if (vm.snapshots.length === 0) {
+    print(`La VM '${vm.name}' no tiene snapshots.`, 'warn');
+    nl();
+    return;
+  }
+  print(`Snapshots de VM: ${vm.name}`, 'accent');
+  print('Name                  Created              ', 'header');
+  print('────────────────────  ────────────────────', 'dim');
+  vm.snapshots.forEach(s => {
+    print(`${s.name.padEnd(21)} ${s.date}`, 'data');
+  });
+  nl();
+}
+
+function showStats(vm) {
+  nl();
+  print(`Estadísticas CPU — ${vm.name}`, 'accent');
+  print('─'.repeat(55), 'dim');
+  print('Timestamp            Entity   MetricId              Value  Unit', 'header');
+  print('───────────────────  ───────  ─────────────────────  ─────  ────', 'dim');
+  const now = new Date();
+  for (let i = 4; i >= 0; i--) {
+    const t = new Date(now - i*20000);
+    const ts = t.toISOString().replace('T',' ').substring(0,19);
+    const val = (Math.random()*40+10).toFixed(2);
+    print(`${ts}  ${vm.name.padEnd(7)}  cpu.usage.average     ${val}  %`, 'data');
+  }
+  nl();
+}
+
+function showVICommands() {
+  nl();
+  print('Cmdlets disponibles (muestra):', 'accent');
+  print('─'.repeat(50), 'dim');
+  const cmds = [
+    'Connect-VIServer', 'Disconnect-VIServer', 'Get-VM', 'Set-VM',
+    'Start-VM', 'Stop-VM', 'Suspend-VM', 'Restart-VM', 'New-VM', 'Remove-VM',
+    'Get-VMHost', 'Get-Datastore', 'Get-Cluster', 'Get-VMGuest',
+    'Get-Snapshot', 'New-Snapshot', 'Remove-Snapshot',
+    'Get-Stat', 'Get-VIEvent', 'Get-VIPrivilege'
+  ];
+  cmds.forEach(c => print(`  ${c}`, 'data'));
+  nl();
+}
+
+function showHelp() {
+  nl();
+  print('╔══════════════════════════════════════════════════════════╗', 'accent');
+  print('║          PowerCLI Simulator — Comandos disponibles       ║', 'accent');
+  print('╚══════════════════════════════════════════════════════════╝', 'accent');
+  nl();
+  print('CONEXIÓN:', 'warn');
+  print('  Set-PowerCLIConfiguration -InvalidCertificateAction Ignore', 'data');
+  print('  Connect-VIServer -Server <host> -User <user> -Password <pass>', 'data');
+  print('  Disconnect-VIServer -Server * -Confirm:$false', 'data');
+  nl();
+  print('MÁQUINAS VIRTUALES:', 'warn');
+  print('  Get-VM', 'data');
+  print('  Get-VM -Name <nombre>', 'data');
+  print('  Start-VM -VM <nombre>', 'data');
+  print('  Stop-VM -VM <nombre>', 'data');
+  print('  Suspend-VM -VM <nombre>', 'data');
+  print('  Restart-VM -VM <nombre>', 'data');
+  nl();
+  print('INFRAESTRUCTURA:', 'warn');
+  print('  Get-VMHost | Get-Datastore | Get-Cluster', 'data');
+  print('  Get-VMGuest -VM <nombre>', 'data');
+  print('  Get-Stat -Entity <nombre> -Stat cpu.usage.average', 'data');
+  nl();
+  print('SNAPSHOTS:', 'warn');
+  print('  Get-Snapshot -VM <nombre>', 'data');
+  print('  New-Snapshot -VM <nombre> -Name "descripcion"', 'data');
+  nl();
+  print('OTROS: Clear-Host, Get-VICommand, help', 'dim');
+  nl();
+  print('💡 Usa las flechas ↑↓ para navegar el historial de comandos.', 'warn');
+  nl();
+}
+
+// ===================== UI UPDATE =====================
+function updateStatus() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  const prompt = document.getElementById('promptLabel');
+  if (state.connected) {
+    dot.classList.add('connected');
+    txt.textContent = `Conectado: ${state.vcenter}`;
+    txt.style.color = 'var(--success)';
+    prompt.textContent = `PS ${state.vcenter}:\\> `;
+  } else {
+    dot.classList.remove('connected');
+    txt.textContent = 'Desconectado';
+    txt.style.color = '#6a9abf';
+    prompt.textContent = 'PS C:\\> ';
+  }
+}
+
+function updateVMPanel() {
+  const list = document.getElementById('vmList');
+  if (!state.connected) {
+    list.innerHTML = '<div style="color:var(--dim);font-size:11px;">Conéctate a vCenter para ver el inventario.</div>';
+    return;
+  }
+  list.innerHTML = state.vms.map(vm => `
+    <div class="vm-card">
+      <div class="vm-name">🖥 ${vm.name}</div>
+      <div class="vm-stat">OS: <span>${vm.os.substring(0,20)}</span></div>
+      <div class="vm-stat">CPU: <span>${vm.cpu} vCPU</span> | RAM: <span>${vm.mem}GB</span></div>
+      <div class="vm-stat">IP: <span>${vm.ip}</span></div>
+      ${vm.snapshots.length > 0 ? `<div class="vm-stat">📸 <span>${vm.snapshots.length} snapshot(s)</span></div>` : ''}
+      <div>
+        <span class="vm-power ${vm.power === 'on' ? 'on' : vm.power === 'off' ? 'off' : 'suspended'}">
+          ${vm.power === 'on' ? '● PoweredOn' : vm.power === 'off' ? '● PoweredOff' : '● Suspended'}
+        </span>
+      </div>
+    </div>
+  `).join('');
+}
+</script>
+</body>
+</html>
